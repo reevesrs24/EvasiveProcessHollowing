@@ -1,0 +1,5 @@
+﻿  main.cpp
+C:\Users\pip\source\repos\HollowProcessInjection\helper.h(67,2): warning C4091:  'typedef ': ignored on left of 'PROCESSINFOCLASS' when no variable is declared
+C:\Users\pip\source\repos\HollowProcessInjection\main.cpp(74,9): warning C4477:  'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'PPEB'
+C:\Users\pip\source\repos\HollowProcessInjection\main.cpp(45,13): warning C4101:  'lpReOpenBuff': unreferenced local variable
+  HollowProcessInjection.vcxproj -> C:\Users\pip\source\repos\HollowProcessInjection\Debug\HollowProcessInjection.exe
