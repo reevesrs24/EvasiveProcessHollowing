@@ -99,93 +99,81 @@ typedef struct _ASSEMBLY_STORAGE_MAP { void* dummy; } ASSEMBLY_STORAGE_MAP;
 typedef struct _FLS_CALLBACK_INFO { void* dummy; } FLS_CALLBACK_INFO;             
 
 
-typedef struct _PEB
-{
-	UCHAR InheritedAddressSpace;
-	UCHAR ReadImageFileExecOptions;
-	UCHAR BeingDebugged;
-	UCHAR BitField;
-	ULONG ImageUsesLargePages : 1;
-	ULONG IsProtectedProcess : 1;
-	ULONG IsLegacyProcess : 1;
-	ULONG IsImageDynamicallyRelocated : 1;
-	ULONG SpareBits : 4;
-	PVOID Mutant;
-	PVOID ImageBaseAddress;
-	PPEB_LDR_DATA Ldr;
-	PRTL_USER_PROCESS_PARAMETERS ProcessParameters;
-	PVOID SubSystemData;
-	PVOID ProcessHeap;
-	PRTL_CRITICAL_SECTION FastPebLock;
-	PVOID AtlThunkSListPtr;
-	PVOID IFEOKey;
-	ULONG CrossProcessFlags;
-	ULONG ProcessInJob : 1;
-	ULONG ProcessInitializing : 1;
-	ULONG ReservedBits0 : 30;
-	union
-	{
-		PVOID KernelCallbackTable;
-		PVOID UserSharedInfoPtr;
-	};
-	ULONG SystemReserved[1];
-	ULONG SpareUlong;
-	PPEB_FREE_BLOCK FreeList;
-	ULONG TlsExpansionCounter;
-	PVOID TlsBitmap;
-	ULONG TlsBitmapBits[2];
-	PVOID ReadOnlySharedMemoryBase;
-	PVOID HotpatchInformation;
-	VOID** ReadOnlyStaticServerData;
-	PVOID AnsiCodePageData;
-	PVOID OemCodePageData;
-	PVOID UnicodeCaseTableData;
-	ULONG NumberOfProcessors;
-	ULONG NtGlobalFlag;
-	LARGE_INTEGER CriticalSectionTimeout;
-	ULONG HeapSegmentReserve;
-	ULONG HeapSegmentCommit;
-	ULONG HeapDeCommitTotalFreeThreshold;
-	ULONG HeapDeCommitFreeBlockThreshold;
-	ULONG NumberOfHeaps;
-	ULONG MaximumNumberOfHeaps;
-	VOID** ProcessHeaps;
-	PVOID GdiSharedHandleTable;
-	PVOID ProcessStarterHelper;
-	ULONG GdiDCAttributeList;
-	PRTL_CRITICAL_SECTION LoaderLock;
-	ULONG OSMajorVersion;
-	ULONG OSMinorVersion;
+typedef void (*PPEBLOCKROUTINE)(
+	PVOID PebLock
+	);
+
+
+
+typedef struct _PEB {
+	BYTE InheritedAddressSpace;
+	BYTE ReadImageFileExecOptions;
+	BYTE BeingDebugged;
+	BYTE SpareBool;
+	void* Mutant;
+	void* ImageBaseAddress;
+	_PEB_LDR_DATA* Ldr;
+	_RTL_USER_PROCESS_PARAMETERS* ProcessParameters;
+	void* SubSystemData;
+	void* ProcessHeap;
+	_RTL_CRITICAL_SECTION* FastPebLock;
+	void* FastPebLockRoutine;
+	void* FastPebUnlockRoutine;
+	DWORD EnvironmentUpdateCount;
+	void* KernelCallbackTable;
+	DWORD SystemReserved[1];
+	DWORD ExecuteOptions : 2; // bit offset: 34, len=2
+	DWORD SpareBits : 30; // bit offset: 34, len=30
+	_PEB_FREE_BLOCK* FreeList;
+	DWORD TlsExpansionCounter;
+	void* TlsBitmap;
+	DWORD TlsBitmapBits[2];
+	void* ReadOnlySharedMemoryBase;
+	void* ReadOnlySharedMemoryHeap;
+	void** ReadOnlyStaticServerData;
+	void* AnsiCodePageData;
+	void* OemCodePageData;
+	void* UnicodeCaseTableData;
+	DWORD NumberOfProcessors;
+	DWORD NtGlobalFlag;
+	_LARGE_INTEGER CriticalSectionTimeout;
+	DWORD HeapSegmentReserve;
+	DWORD HeapSegmentCommit;
+	DWORD HeapDeCommitTotalFreeThreshold;
+	DWORD HeapDeCommitFreeBlockThreshold;
+	DWORD NumberOfHeaps;
+	DWORD MaximumNumberOfHeaps;
+	void** ProcessHeaps;
+	void* GdiSharedHandleTable;
+	void* ProcessStarterHelper;
+	DWORD GdiDCAttributeList;
+	void* LoaderLock;
+	DWORD OSMajorVersion;
+	DWORD OSMinorVersion;
 	WORD OSBuildNumber;
 	WORD OSCSDVersion;
-	ULONG OSPlatformId;
-	ULONG ImageSubsystem;
-	ULONG ImageSubsystemMajorVersion;
-	ULONG ImageSubsystemMinorVersion;
-	ULONG ImageProcessAffinityMask;
-	ULONG GdiHandleBuffer[34];
-	PVOID PostProcessInitRoutine;
-	PVOID TlsExpansionBitmap;
-	ULONG TlsExpansionBitmapBits[32];
-	ULONG SessionId;
-	ULARGE_INTEGER AppCompatFlags;
-	ULARGE_INTEGER AppCompatFlagsUser;
-	PVOID pShimData;
-	PVOID AppCompatInfo;
-	UNICODE_STRING CSDVersion;
-	_ACTIVATION_CONTEXT_DATA* ActivationContextData;
-	_ASSEMBLY_STORAGE_MAP* ProcessAssemblyStorageMap;
-	_ACTIVATION_CONTEXT_DATA* SystemDefaultActivationContextData;
-	_ASSEMBLY_STORAGE_MAP* SystemAssemblyStorageMap;
-	ULONG MinimumStackCommit;
-	_FLS_CALLBACK_INFO* FlsCallback;
-	LIST_ENTRY FlsListHead;
-	PVOID FlsBitmap;
-	ULONG FlsBitmapBits[4];
-	ULONG FlsHighIndex;
-	PVOID WerRegistrationData;
-	PVOID WerShipAssertPtr;
+	DWORD OSPlatformId;
+	DWORD ImageSubsystem;
+	DWORD ImageSubsystemMajorVersion;
+	DWORD ImageSubsystemMinorVersion;
+	DWORD ImageProcessAffinityMask;
+	DWORD GdiHandleBuffer[34];
+	void (*PostProcessInitRoutine)();
+	void* TlsExpansionBitmap;
+	DWORD TlsExpansionBitmapBits[32];
+	DWORD SessionId;
+	_ULARGE_INTEGER AppCompatFlags;
+	_ULARGE_INTEGER AppCompatFlagsUser;
+	void* pShimData;
+	void* AppCompatInfo;
+	_UNICODE_STRING CSDVersion;
+	void* ActivationContextData;
+	void* ProcessAssemblyStorageMap;
+	void* SystemDefaultActivationContextData;
+	void* SystemAssemblyStorageMap;
+	DWORD MinimumStackCommit;
 } PEB, *PPEB;
+
 
 typedef struct _PROCESS_BASIC_INFORMATION {
 	PVOID Reserved1;
