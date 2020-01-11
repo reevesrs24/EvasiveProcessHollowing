@@ -46,7 +46,7 @@ int main()
 	ZwUnmapViewOfSection(pi.hProcess, peb->ImageBaseAddress);
 
 
-	HANDLE hFileYo = CreateFileA("C:\\Users\\pip\\Desktop\\calc.exe", GENERIC_ALL, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	HANDLE hFileYo = CreateFileA("C:\\Users\\pip\\Desktop\\yo3.exe", GENERIC_ALL, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	HANDLE handleMappingYo = CreateFileMappingA(hFileYo, NULL, PAGE_READWRITE, 0, 0, NULL);
 	LPVOID lpBaseYo = MapViewOfFile(handleMappingYo, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
