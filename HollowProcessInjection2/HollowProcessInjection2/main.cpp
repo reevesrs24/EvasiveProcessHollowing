@@ -2,6 +2,7 @@
 #include "helper.h"
 #include <windows.h>
 #include <wdbgexts.h>
+#include "resource.h"
 
 int main()
 {
@@ -43,16 +44,19 @@ int main()
 	PPEB peb = new PEB();
 	ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, peb, sizeof(PEB), 0);
 
-	
-	//ZwUnmapViewOfSection(pi.hProcess, peb->ImageBaseAddress);
-
-	HANDLE hFileYo = CreateFileA("C:\\Users\\pip\\Desktop\\calc.exe", GENERIC_ALL, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	HANDLE handleMappingYo = CreateFileMappingA(hFileYo, NULL, PAGE_READWRITE, 0, 0, NULL);
-	LPVOID lpBaseYo = MapViewOfFile(handleMappingYo, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	/* Resource Test */
+	HRSRC resc = FindResource(NULL, MAKEINTRESOURCE(IDR_RCDATA1), RT_RCDATA);
+	HGLOBAL rescData = LoadResource(NULL, resc);
+	LPVOID lpmyExe = LockResource(rescData);
 
 
+	//HANDLE hFileYo = CreateFileA("C:\\Users\\pip\\Desktop\\yo3.exe", GENERIC_ALL, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	//HANDLE handleMappingYo = CreateFileMappingA(hFileYo, NULL, PAGE_READWRITE, 0, 0, NULL);
+	//LPVOID lpBaseYo = MapViewOfFile(handleMappingYo, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 
-	PIMAGE_DOS_HEADER dosHeaderYo = (PIMAGE_DOS_HEADER)lpBaseYo;
+
+
+	PIMAGE_DOS_HEADER dosHeaderYo = (PIMAGE_DOS_HEADER)lpmyExe;
 
 	if (dosHeaderYo->e_magic != IMAGE_DOS_SIGNATURE)
 	{
@@ -111,10 +115,10 @@ int main()
 		lpContext
 	);
 
-
-	BYTE buf[4];
-
-	//memcpy(buf, , 4);
+	/*
+	DWORD temp = (DWORD)peb->ImageBaseAddress;
+	DWORD* pTemp = &temp;
+	*/
 
 	WriteProcessMemory(
 		pi.hProcess,
@@ -124,14 +128,31 @@ int main()
 		NULL
 	);
 
+	ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, peb, sizeof(PEB), 0);
+
+	printf("Created Process Image Base Address %x\n", peb->ImageBaseAddress);
+
 	//ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, peb, sizeof(PEB), 0);
+
 	printf("Created Process id: %i\n", pi.dwProcessId);
 	ResumeThread(
 		pi.hThread
 	);
-
-
 	
+	
+	/*
+
+	WriteProcessMemory(
+		pi.hProcess,
+		(LPVOID)((DWORD)pbi.PebBaseAddress + 8),
+		pTemp,
+		4,
+		NULL
+	);
+
+	ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, peb, sizeof(PEB), 0);
+	*/
+
 	printf("Size of Image: %u\n", pNTHeaderYo->OptionalHeader.SizeOfImage);
 	printf("Created Process PebBaseAddress: 0x%x\n", pbi.PebBaseAddress);
 	printf("Created Process Image Base Address %x\n", peb->ImageBaseAddress);
