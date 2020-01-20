@@ -1,0 +1,7 @@
+﻿  main.cpp
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection2\hollowprocessinjection2\helper.h(67,2): warning C4091:  'typedef ': ignored on left of 'PROCESSINFOCLASS' when no variable is declared
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection2\hollowprocessinjection2\main.cpp(133,9): warning C4477:  'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'void *'
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection2\hollowprocessinjection2\main.cpp(157,9): warning C4477:  'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'PPEB'
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection2\hollowprocessinjection2\main.cpp(158,9): warning C4477:  'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'void *'
+MSVCRTD.lib(exe_winmain.obj) : error LNK2019: unresolved external symbol _WinMain@16 referenced in function "int __cdecl invoke_main(void)" (?invoke_main@@YAHXZ)
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection2\Debug\HollowProcessInjection3.exe : fatal error LNK1120: 1 unresolved externals
