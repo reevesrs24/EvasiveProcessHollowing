@@ -101,7 +101,7 @@ typedef struct _FLS_CALLBACK_INFO { void* dummy; } FLS_CALLBACK_INFO;
 
 typedef void (*PPEBLOCKROUTINE)(
 	PVOID PebLock
-	);
+);
 
 
 
