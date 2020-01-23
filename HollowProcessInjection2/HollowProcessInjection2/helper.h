@@ -122,8 +122,8 @@ typedef struct _PEB {
 	DWORD EnvironmentUpdateCount;
 	void* KernelCallbackTable;
 	DWORD SystemReserved[1];
-	DWORD ExecuteOptions : 2; // bit offset: 34, len=2
-	DWORD SpareBits : 30; // bit offset: 34, len=30
+	DWORD ExecuteOptions : 2;  // bit offset: 34, len=2
+	DWORD SpareBits : 30;      // bit offset: 34, len=30
 	_PEB_FREE_BLOCK* FreeList;
 	DWORD TlsExpansionCounter;
 	void* TlsBitmap;
@@ -183,49 +183,7 @@ typedef struct _PROCESS_BASIC_INFORMATION {
 	PVOID Reserved3;
 } PROCESS_BASIC_INFORMATION;
 
-typedef enum _SECTION_INHERIT {
-	ViewShare = 1,
-	ViewUnmap = 2
-} SECTION_INHERIT, * PSECTION_INHERIT;
 
-typedef struct _OBJECT_ATTRIBUTES
-{
-	ULONG Length;
-	PVOID RootDirectory;
-	PUNICODE_STRING ObjectName;
-	ULONG Attributes;
-	PVOID SecurityDescriptor;
-	PVOID SecurityQualityOfService;
-} OBJECT_ATTRIBUTES, * POBJECT_ATTRIBUTES;
-
-typedef NTSTATUS(WINAPI* _ZwCreateSection) (
-	PHANDLE            SectionHandle,
-	ACCESS_MASK        DesiredAccess,
-	POBJECT_ATTRIBUTES ObjectAttributes,
-	PLARGE_INTEGER     MaximumSize,
-	ULONG              SectionPageProtection,
-	ULONG              AllocationAttributes,
-	HANDLE             FileHandle
-);
-
-typedef NTSTATUS(WINAPI* _ZwMapViewOfSection)(
-	HANDLE          SectionHandle,
-	HANDLE          ProcessHandle,
-	PVOID*          BaseAddress,
-	ULONG_PTR       ZeroBits,
-	SIZE_T          CommitSize,
-	PLARGE_INTEGER  SectionOffset,
-	PSIZE_T         ViewSize,
-	SECTION_INHERIT InheritDisposition,
-	ULONG           AllocationType,
-	ULONG           Win32Protect
-);
-
-
-typedef NTSTATUS(WINAPI* _ZwUnmapViewOfSection)(
-	_In_     HANDLE ProcessHandle,
-	_In_opt_ PVOID  BaseAddress
-);
 
 typedef NTSTATUS(WINAPI* _NtQueryInformationProcess)(
 	IN HANDLE           ProcessHandle,
