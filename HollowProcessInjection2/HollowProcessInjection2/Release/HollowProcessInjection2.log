@@ -1,9 +1,0 @@
-﻿  main.cpp
-C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection2\HollowProcessInjection2\helper.h(67,2): warning C4091:  'typedef ': ignored on left of 'PROCESSINFOCLASS' when no variable is declared
-C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection2\HollowProcessInjection2\main.cpp(107,9): warning C4477:  'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'PPEB'
-C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection2\HollowProcessInjection2\main.cpp(108,9): warning C4477:  'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'void *'
-  Generating code
-  Previous IPDB not found, fall back to full compilation.
-  All 4 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
-  Finished generating code
-  HollowProcessInjection2.vcxproj -> C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection2\Release\HollowProcessInjection2.exe
