@@ -22,7 +22,7 @@ int main()
 
 	if (!CreateProcess("C:\\Windows\\System32\\explorer.exe", NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
 	{
-		printf("CreateProcess Failed: %d.\n", GetLastError());
+		printf("CreateProcess Failed: %i.\n", GetLastError());
 	}
 
 
