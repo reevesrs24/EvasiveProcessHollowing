@@ -26,9 +26,6 @@
     <ResourceCompile Include="HollowProcessInjection.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="yo.exe" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

