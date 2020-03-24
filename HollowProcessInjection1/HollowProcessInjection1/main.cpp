@@ -59,7 +59,7 @@ int main()
 	PIMAGE_NT_HEADERS pNTHeaderResource = (PIMAGE_NT_HEADERS)((DWORD)pDosHeader + (DWORD)pDosHeader->e_lfanew);
 	
 	/* Allocate virtual memory for the process which is to be injected */
-	LPVOID baseAddressInjectedPE = VirtualAllocEx(pi.hProcess, pPeb->ImageBaseAddress, pNTHeaderResource->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	LPVOID baseAddressInjectedPE = VirtualAllocEx(pi.hProcess, NULL, pNTHeaderResource->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
 	PBYTE pHeader = new BYTE[pNTHeaderResource->OptionalHeader.SizeOfHeaders];
 
