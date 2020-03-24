@@ -13,3 +13,6 @@ Poc: [HollowProcessInjection2](https://github.com/reevesrs24/EvasiveProcessHollo
 Poc: [HollowProcessInjection3](https://github.com/reevesrs24/EvasiveProcessHollowing/tree/master/HollowProcessInjection3)
 
 
+#### Sources:
+[What Malware Authors Don't want you to know - Evasive Hollow Process Injection](https://www.blackhat.com/docs/asia-17/materials/asia-17-KA-What-Malware-Authors-Don't-Want-You-To-Know-Evasive-Hollow-Process-Injection-wp.pdf)\
+[Process Hollowing - John Leitch](https://www.autosectools.com/process-hollowing.pdf)
