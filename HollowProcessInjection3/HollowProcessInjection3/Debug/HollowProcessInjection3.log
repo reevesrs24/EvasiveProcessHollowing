@@ -1,5 +1,7 @@
 ﻿  main.cpp
 C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection3\HollowProcessInjection3\helper.h(67,2): warning C4091: 'typedef ': ignored on left of 'PROCESSINFOCLASS' when no variable is declared
-C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection3\HollowProcessInjection3\main.cpp(140,9): warning C4477: 'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'void *'
-C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection3\HollowProcessInjection3\main.cpp(141,9): warning C4477: 'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'PVOID'
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection3\HollowProcessInjection3\main.cpp(194,11): warning C4477: 'printf' : format string '%p' requires an argument of type 'void *', but variadic argument 1 has type 'DWORD'
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection3\HollowProcessInjection3\main.cpp(194,11): warning C4477: 'printf' : format string '%p' requires an argument of type 'void *', but variadic argument 2 has type 'DWORD'
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection3\HollowProcessInjection3\main.cpp(254,11): warning C4477: 'printf' : format string '%08x' requires an argument of type 'unsigned int', but variadic argument 2 has type 'HANDLE'
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection3\HollowProcessInjection3\main.cpp(235,8): warning C4101: 'origThunkPtr': unreferenced local variable
   HollowProcessInjection3.vcxproj -> C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection3\Debug\HollowProcessInjection3.exe

@@ -1,3 +1,5 @@
 ﻿  main.cpp
 C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection1\HollowProcessInjection1\helper.h(67,2): warning C4091: 'typedef ': ignored on left of 'PROCESSINFOCLASS' when no variable is declared
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection1\HollowProcessInjection1\main.cpp(115,9): warning C4477: 'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'void *'
+C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection1\HollowProcessInjection1\main.cpp(116,9): warning C4477: 'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'LPVOID'
   HollowProcessInjection1.vcxproj -> C:\Users\pip\Dev\EvasiveProcessHollowing\HollowProcessInjection1\Debug\HollowProcessInjection1.exe

