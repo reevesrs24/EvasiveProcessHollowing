@@ -11,8 +11,9 @@ PoC: [HollowProcessInjection1](https://github.com/reevesrs24/EvasiveProcessHollo
 PoC: [HollowProcessInjection2](https://github.com/reevesrs24/EvasiveProcessHollowing/tree/master/HollowProcessInjection2)
 
 #### 3. Process Hollowing - Address of Entry point Modification w/ changing the Memory Protection to PAGE_EXECUTE_WRITECOPY
-* The injected .exe for this technique has been converted into shellcode using Hasherezade pe_to_shellcode tool. \
 PoC: [HollowProcessInjection3](https://github.com/reevesrs24/EvasiveProcessHollowing/tree/master/HollowProcessInjection3)
+* The injected .exe for this technique has been converted into shellcode using Hasherezade's pe_to_shellcode tool.
+
 
 
 #### Sources:
